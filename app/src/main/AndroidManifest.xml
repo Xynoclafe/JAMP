@@ -13,6 +13,7 @@ package="org.xynoclafe.jam_p">
             <category android:name="android.intent.category.LAUNCHER" />
         </intent-filter>
     </activity>
+    <service android:name=".MusicService"/>
 </application>
 
 </manifest>
