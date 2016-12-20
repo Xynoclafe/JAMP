@@ -38,6 +38,8 @@ import android.widget.MediaController;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import org.w3c.dom.Text;
+
 public class MainActivity extends AppCompatActivity implements MediaController.MediaPlayerControl {
 
     /**
@@ -56,6 +58,7 @@ public class MainActivity extends AppCompatActivity implements MediaController.M
     private ViewPager mViewPager;
     private static ArrayList<Song> songList;
     private static ListView songView;
+    private static TextView controllerView;
     private MusicService musicSrv;
     private Intent playIntent;
     private boolean musicBound=false;
@@ -78,16 +81,6 @@ public class MainActivity extends AppCompatActivity implements MediaController.M
         // Set up the ViewPager with the sections adapter.
         mViewPager = (ViewPager) findViewById(R.id.container);
         mViewPager.setAdapter(mSectionsPagerAdapter);
-
-
-        FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
-        fab.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)
-                        .setAction("Action", null).show();
-            }
-        });
 
     }
 
@@ -198,7 +191,7 @@ public class MainActivity extends AppCompatActivity implements MediaController.M
             setController();
             playbackPaused=false;
         }
-        controller.show(0);
+        //controller.show(0);
         Log.d("logs", String.valueOf(controller.isShowing()));
     }
 
@@ -228,7 +221,7 @@ public class MainActivity extends AppCompatActivity implements MediaController.M
             setController();
             playbackPaused=false;
         }
-        controller.show(0);
+        //controller.show(0);
     }
 
     public void playNext(){
@@ -237,7 +230,7 @@ public class MainActivity extends AppCompatActivity implements MediaController.M
             setController();
             playbackPaused=false;
         }
-        controller.show(0);
+        //controller.show(0);
     }
 
     @Override
@@ -337,6 +330,7 @@ public class MainActivity extends AppCompatActivity implements MediaController.M
             if(getArguments().getInt(ARG_SECTION_NUMBER) == 1)
             {
                 songView = (ListView) rootView.findViewById(R.id.song_list);
+                controllerView = (TextView) rootView.findViewById(R.id.section_label);
                 songList = new ArrayList<Song>();
                 getSongList(getContext());
                 SongAdapter songAdt = new SongAdapter(getContext(), songList);
@@ -363,9 +357,9 @@ public class MainActivity extends AppCompatActivity implements MediaController.M
                     }
                 });
                 controller.setMediaPlayer((MainActivity)getActivity());
-                controller.setAnchorView(songView);
+                controller.setAnchorView(controllerView);
                 controller.setEnabled(true);
-                /*controller.show(0);*/
+                controller.show(0);
                 setControl(controller);
             }
             else {

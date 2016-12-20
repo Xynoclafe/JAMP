@@ -1,6 +1,8 @@
 package org.xynoclafe.jam_p;
 
 import android.content.Context;
+import android.view.LayoutInflater;
+import android.view.View;
 import android.widget.MediaController;
 
 /**
@@ -14,4 +16,5 @@ public class MusicController extends MediaController {
     }
 
     public void hide(){}
+
 }

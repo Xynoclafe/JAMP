@@ -18,6 +18,7 @@ import android.net.Uri;
 import android.os.Binder;
 import android.os.PowerManager;
 import android.util.Log;
+import android.widget.MediaController;
 import android.widget.Toast;
 
 /**
@@ -104,6 +105,8 @@ public class MusicService extends Service implements MediaPlayer.OnPreparedListe
         }
         player.prepareAsync();
         player.setOnPreparedListener(this);
+        player.setOnCompletionListener(this);
+        player.setOnErrorListener(this);
 
     }
 
@@ -193,7 +196,10 @@ public class MusicService extends Service implements MediaPlayer.OnPreparedListe
 
     @Override
     public void onPrepared(MediaPlayer mediaPlayer) {
+        MusicController mControl = MainActivity.getControl();
         mediaPlayer.start();
+        mControl.show(0);
+        MainActivity.setControl(mControl);
         Intent notIntent = new Intent(this, MainActivity.class);
         notIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
         PendingIntent pendInt = PendingIntent.getActivity(this, 0,
