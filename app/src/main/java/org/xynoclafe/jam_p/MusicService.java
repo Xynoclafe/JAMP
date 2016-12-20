@@ -1,5 +1,7 @@
 package org.xynoclafe.jam_p;
 
+import android.app.Notification;
+import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Intent;
 import android.media.MediaPlayer;
@@ -8,6 +10,8 @@ import android.support.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Random;
+
 import android.content.ContentUris;
 import android.media.AudioManager;
 import android.net.Uri;
@@ -30,6 +34,13 @@ public class MusicService extends Service implements MediaPlayer.OnPreparedListe
     private int songPosn;
     //instance variable for the MusicBinder
     private final IBinder musicBind = new MusicBinder();
+    //Variable for song title
+    private String songTitle="";
+    private String artistTitle="";
+    private static final int NOTIFY_ID=1;
+    //Variables for shuffle
+    private boolean shuffle=false;
+    private Random rand;
 
     public void onCreate(){
         //create the service
@@ -39,6 +50,7 @@ public class MusicService extends Service implements MediaPlayer.OnPreparedListe
         songPosn=0;
         //create player
         player = new MediaPlayer();
+        rand = new Random();
     }
 
 
@@ -76,6 +88,9 @@ public class MusicService extends Service implements MediaPlayer.OnPreparedListe
         Song playSong = songs.get(songPosn);
         //get id
         long currSong = playSong.getID();
+        //get Songle Title
+        songTitle = playSong.getTitle();
+        artistTitle = playSong.getArtist();
         //set uri
         Uri trackUri = ContentUris.withAppendedId(
                 android.provider.MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
@@ -90,6 +105,62 @@ public class MusicService extends Service implements MediaPlayer.OnPreparedListe
         player.prepareAsync();
         player.setOnPreparedListener(this);
 
+    }
+
+    public void playPrev(){
+        songPosn--;
+        if(songPosn < 0)
+            songPosn=songs.size()-1;
+        playSong();
+    }
+
+    //skip to next
+    public void playNext(){
+        if(shuffle){
+            int newSong = songPosn;
+            while(newSong==songPosn){
+                newSong=rand.nextInt(songs.size());
+            }
+            songPosn=newSong;
+        }
+        else {
+            songPosn++;
+            if (songPosn >= songs.size())
+                songPosn = 0;
+        }
+        playSong();
+    }
+
+    public void setShuffle(){
+        if(shuffle)
+            shuffle=false;
+        else
+            shuffle=true;
+    }
+
+
+    public int getPosn(){
+        return player.getCurrentPosition();
+    }
+
+    public int getDur(){
+        return player.getDuration();
+    }
+
+    public boolean isPng(){
+        return player.isPlaying();
+    }
+
+    public void pausePlayer(){
+        player.pause();
+    }
+
+    public void seek(int posn){
+        player.seekTo(posn);
+    }
+
+    public void go(){
+        player.start();
     }
 
     @Nullable
@@ -107,15 +178,42 @@ public class MusicService extends Service implements MediaPlayer.OnPreparedListe
 
     @Override
     public void onCompletion(MediaPlayer mediaPlayer) {
+        if(player.getCurrentPosition() > 0)
+        {
+            mediaPlayer.reset();
+            playNext();
+        }
     }
 
     @Override
     public boolean onError(MediaPlayer mediaPlayer, int i, int i1) {
+        mediaPlayer.reset();
         return false;
     }
 
     @Override
     public void onPrepared(MediaPlayer mediaPlayer) {
         mediaPlayer.start();
+        Intent notIntent = new Intent(this, MainActivity.class);
+        notIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        PendingIntent pendInt = PendingIntent.getActivity(this, 0,
+                notIntent, PendingIntent.FLAG_UPDATE_CURRENT);
+
+        Notification.Builder builder = new Notification.Builder(this);
+
+        builder.setContentIntent(pendInt)
+                .setSmallIcon(R.drawable.play)
+                .setTicker(songTitle)
+                .setOngoing(true)
+                .setContentTitle(songTitle)
+        .setContentText(artistTitle);
+        Notification not = builder.build();
+
+        startForeground(NOTIFY_ID, not);
+    }
+
+    @Override
+    public void onDestroy() {
+        stopForeground(true);
     }
 }

@@ -1,5 +1,6 @@
 package org.xynoclafe.jam_p;
 
+import android.app.Activity;
 import android.content.ComponentName;
 import android.content.ContentResolver;
 import android.content.Context;
@@ -10,6 +11,7 @@ import android.net.Uri;
 import android.os.IBinder;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
+import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 
@@ -32,9 +34,11 @@ import java.util.Comparator;
 
 import android.widget.AdapterView;
 import android.widget.ListView;
+import android.widget.MediaController;
 import android.widget.TextView;
+import android.widget.Toast;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity implements MediaController.MediaPlayerControl {
 
     /**
      * The {@link android.support.v4.view.PagerAdapter} that will provide
@@ -55,6 +59,10 @@ public class MainActivity extends AppCompatActivity {
     private MusicService musicSrv;
     private Intent playIntent;
     private boolean musicBound=false;
+    public static MusicController controller = null;
+    private boolean paused = false;
+    private boolean playbackPaused = false;
+    private boolean shuffle = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -120,7 +128,18 @@ public class MainActivity extends AppCompatActivity {
 
         switch (id) {
             case R.id.action_shuffle:
-                //shuffle
+                musicSrv.setShuffle();
+                if(shuffle) {
+                    shuffle = false;
+                    item.setIcon(R.drawable.shuffle);
+                    Toast.makeText(this, "Shuffle Off", Toast.LENGTH_SHORT).show();
+                }
+                else
+                {
+                    shuffle = true;
+                    item.setIcon(R.drawable.shuffle_on);
+                    Toast.makeText(this, "Shuffle On", Toast.LENGTH_SHORT).show();
+                }
                 break;
             case R.id.action_end:
                 stopService(playIntent);
@@ -130,6 +149,14 @@ public class MainActivity extends AppCompatActivity {
         }
 
         return super.onOptionsItemSelected(item);
+    }
+
+    public static MusicController getControl(){
+        return controller;
+    }
+
+    public static void setControl(MusicController control){
+        controller = control;
     }
 
     @Override
@@ -149,9 +176,133 @@ public class MainActivity extends AppCompatActivity {
         super.onDestroy();
     }
 
+    @Override
+    protected void onPause(){
+        super.onPause();
+        paused=true;
+    }
+
+    @Override
+    protected void onResume(){
+        super.onResume();
+        if(paused){
+            setController();
+            paused=false;
+        }
+    }
+
     public void songPicked(View view){
         musicSrv.setSong(Integer.parseInt(view.getTag().toString()));
         musicSrv.playSong();
+        if(playbackPaused){
+            setController();
+            playbackPaused=false;
+        }
+        controller.show(0);
+        Log.d("logs", String.valueOf(controller.isShowing()));
+    }
+
+    public void setController(){
+        //set the controller up
+        if(controller == null)
+            controller = new MusicController(this);
+        controller.setPrevNextListeners(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                playNext();
+            }
+        }, new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                playPrev();
+            }
+        });
+        controller.setMediaPlayer(this);
+        controller.setAnchorView(findViewById(R.id.song_list));
+        controller.setEnabled(true);
+    }
+
+    public void playPrev(){
+        musicSrv.playPrev();
+        if(playbackPaused){
+            setController();
+            playbackPaused=false;
+        }
+        controller.show(0);
+    }
+
+    public void playNext(){
+        musicSrv.playNext();
+        if(playbackPaused){
+            setController();
+            playbackPaused=false;
+        }
+        controller.show(0);
+    }
+
+    @Override
+    public void start() {
+        musicSrv.go();
+    }
+
+    @Override
+    public void pause() {
+        playbackPaused=true;
+        musicSrv.pausePlayer();
+    }
+
+    @Override
+    public int getDuration() {
+        if(musicSrv != null && musicBound && musicSrv.isPng())
+        return musicSrv.getDur();
+        else
+        return 0;
+    }
+
+    @Override
+    public int getCurrentPosition() {
+        if(musicSrv != null && musicBound && musicSrv.isPng())
+            return musicSrv.getPosn();
+        else
+            return 0;
+    }
+
+    @Override
+    public void seekTo(int pos) {
+        musicSrv.seek(pos);
+    }
+
+    @Override
+    public boolean isPlaying() {
+        if(musicSrv != null && musicBound)
+            return musicSrv.isPng();
+        else
+            return false;
+    }
+
+    @Override
+    public int getBufferPercentage() {
+        return 0;
+    }
+
+    @Override
+    public boolean canPause() {
+        return true;
+    }
+
+    @Override
+    public boolean canSeekBackward() {
+        return true;
+    }
+
+    @Override
+    public boolean canSeekForward() {
+        return true;
+    }
+
+    @Override
+    public int getAudioSessionId() {
+        return 0;
     }
 
     /**
@@ -195,13 +346,27 @@ public class MainActivity extends AppCompatActivity {
                         return a.getTitle().compareTo(b.getTitle());
                     }
                 });
-                /*songView.setClickable(true);
-                songView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+                MusicController controller = MainActivity.getControl();
+                if(controller == null)
+                    controller = new MusicController(getContext());
+                controller.setPrevNextListeners(new View.OnClickListener() {
                     @Override
-                    public void onItemClick(AdapterView<?> adapterView, View view, int i, long l) {
-                        MainActivity.songPicked(songView);
+                    public void onClick(View v) {
+                        MainActivity activity = (MainActivity) getActivity();
+                        activity.playNext();
                     }
-                });*/
+                }, new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        MainActivity activity = (MainActivity) getActivity();
+                        activity.playPrev();
+                    }
+                });
+                controller.setMediaPlayer((MainActivity)getActivity());
+                controller.setAnchorView(songView);
+                controller.setEnabled(true);
+                /*controller.show(0);*/
+                setControl(controller);
             }
             else {
                 TextView textView = (TextView) rootView.findViewById(R.id.section_label);
@@ -209,6 +374,7 @@ public class MainActivity extends AppCompatActivity {
             }
             return rootView;
         }
+
     }
 
     /**
