@@ -33,6 +33,7 @@ import java.util.Collections;
 import java.util.Comparator;
 
 import android.widget.AdapterView;
+import android.widget.GridView;
 import android.widget.ListView;
 import android.widget.MediaController;
 import android.widget.TextView;
@@ -58,6 +59,7 @@ public class MainActivity extends AppCompatActivity implements MediaController.M
     private ViewPager mViewPager;
     private static ArrayList<Song> songList;
     private static ListView songView;
+    private static ListView artistView;
     private static TextView controllerView;
     private MusicService musicSrv;
     private Intent playIntent;
@@ -362,6 +364,43 @@ public class MainActivity extends AppCompatActivity implements MediaController.M
                 controller.show(0);
                 setControl(controller);
             }
+            else if(getArguments().getInt(ARG_SECTION_NUMBER) == 2)
+            {
+                artistView = (ListView) rootView.findViewById(R.id.artist_list);
+                songList = new ArrayList<Song>();
+                getSongList(getContext());
+                Collections.sort(songList, new Comparator<Song>(){
+                    public int compare(Song a, Song b){
+                        return a.getArtist().compareTo(b.getArtist());
+                    }
+                });
+                int j = 0;
+                ArrayList<Artist> artist = new ArrayList<Artist>();
+                                for (int i = 0; i < songList.size(); i++) {
+                    Song curSong = (Song)songList.get(i);
+                    if(i == 0)
+                    {
+                        Artist individualArtist = new Artist(curSong.getArtist());
+                        individualArtist.addToList(curSong);
+                        artist.add(individualArtist);
+                    }
+                    else
+                    {
+                        if(artist.get(j).toString().equals(curSong.getArtist())){
+
+                            artist.get(j).addToList(curSong);
+                        }
+                        else{
+                            j++;
+                            Artist individualArtist = new Artist(curSong.getArtist());
+                            individualArtist.addToList(curSong);
+                            artist.add(individualArtist);
+                        }
+                    }
+                }
+                ArtistAdapter artistAdt = new ArtistAdapter(getContext(), artist);
+                artistView.setAdapter(artistAdt);
+            }
             else {
                 TextView textView = (TextView) rootView.findViewById(R.id.section_label);
                 textView.setText(getString(R.string.section_format, getArguments().getInt(ARG_SECTION_NUMBER)));
@@ -400,9 +439,9 @@ public class MainActivity extends AppCompatActivity implements MediaController.M
                 case 0:
                     return "Tracks";
                 case 1:
-                    return "Albums";
-                case 2:
                     return "Artists";
+                case 2:
+                    return "Albums";
             }
             return null;
         }
