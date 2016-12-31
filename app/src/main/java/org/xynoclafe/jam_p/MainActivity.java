@@ -9,6 +9,7 @@ import android.content.ServiceConnection;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.IBinder;
+import android.provider.MediaStore;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
 import android.support.v4.content.ContextCompat;
@@ -58,8 +59,10 @@ public class MainActivity extends AppCompatActivity implements MediaController.M
      */
     private ViewPager mViewPager;
     private static ArrayList<Song> songList;
+    private static ArrayList<Album> album = new ArrayList<Album>();
     private static ListView songView;
     private static ListView artistView;
+    private static ListView albumView;
     private static TextView controllerView;
     private MusicService musicSrv;
     private Intent playIntent;
@@ -91,7 +94,6 @@ public class MainActivity extends AppCompatActivity implements MediaController.M
 
         @Override
         public void onServiceConnected(ComponentName name, IBinder service) {
-            Log.d("service connection test","Connected");
             MusicService.MusicBinder binder = (MusicService.MusicBinder)service;
             //get service
             musicSrv = binder.getService();
@@ -166,6 +168,7 @@ public class MainActivity extends AppCompatActivity implements MediaController.M
 
     @Override
     protected void onDestroy() {
+        controller.hide();
         stopService(playIntent);
         musicSrv=null;
         super.onDestroy();
@@ -180,6 +183,8 @@ public class MainActivity extends AppCompatActivity implements MediaController.M
     @Override
     protected void onResume(){
         super.onResume();
+        if(controller != null)
+            controller.show();
         if(paused){
             setController();
             paused=false;
@@ -189,12 +194,25 @@ public class MainActivity extends AppCompatActivity implements MediaController.M
     public void songPicked(View view){
         musicSrv.setSong(Integer.parseInt(view.getTag().toString()));
         musicSrv.playSong();
-        if(playbackPaused){
+        if(playbackPaused) {
             setController();
-            playbackPaused=false;
+            playbackPaused = false;
         }
-        //controller.show(0);
-        Log.d("logs", String.valueOf(controller.isShowing()));
+    }
+
+    public void albumPicked(View view){
+
+        Intent i = new Intent();
+        Bundle b = new Bundle();
+        b.putSerializable("Album", album.get(Integer.parseInt(view.getTag().toString())));
+        i.putExtras(b);
+        i.setClass(this, AlbumActivity.class);
+        startActivity(i);
+    }
+
+    public void artistPicked(View view){
+
+        Toast.makeText(this,view.getTag().toString() ,Toast.LENGTH_SHORT).show();
     }
 
     public void setController(){
@@ -337,11 +355,6 @@ public class MainActivity extends AppCompatActivity implements MediaController.M
                 getSongList(getContext());
                 SongAdapter songAdt = new SongAdapter(getContext(), songList);
                 songView.setAdapter(songAdt);
-                Collections.sort(songList, new Comparator<Song>(){
-                    public int compare(Song a, Song b){
-                        return a.getTitle().compareTo(b.getTitle());
-                    }
-                });
                 MusicController controller = MainActivity.getControl();
                 if(controller == null)
                     controller = new MusicController(getContext());
@@ -361,7 +374,8 @@ public class MainActivity extends AppCompatActivity implements MediaController.M
                 controller.setMediaPlayer((MainActivity)getActivity());
                 controller.setAnchorView(controllerView);
                 controller.setEnabled(true);
-                controller.show(0);
+                if(!controller.isShowing())
+                    controller.show(0);
                 setControl(controller);
             }
             else if(getArguments().getInt(ARG_SECTION_NUMBER) == 2)
@@ -369,15 +383,16 @@ public class MainActivity extends AppCompatActivity implements MediaController.M
                 artistView = (ListView) rootView.findViewById(R.id.artist_list);
                 songList = new ArrayList<Song>();
                 getSongList(getContext());
-                Collections.sort(songList, new Comparator<Song>(){
+                ArrayList<Song> copyList = new ArrayList<>(songList);
+                Collections.sort(copyList, new Comparator<Song>(){
                     public int compare(Song a, Song b){
                         return a.getArtist().compareTo(b.getArtist());
                     }
                 });
                 int j = 0;
                 ArrayList<Artist> artist = new ArrayList<Artist>();
-                                for (int i = 0; i < songList.size(); i++) {
-                    Song curSong = (Song)songList.get(i);
+                                for (int i = 0; i < copyList.size(); i++) {
+                    Song curSong = (Song)copyList.get(i);
                     if(i == 0)
                     {
                         Artist individualArtist = new Artist(curSong.getArtist());
@@ -400,6 +415,43 @@ public class MainActivity extends AppCompatActivity implements MediaController.M
                 }
                 ArtistAdapter artistAdt = new ArtistAdapter(getContext(), artist);
                 artistView.setAdapter(artistAdt);
+            }
+            else if(getArguments().getInt(ARG_SECTION_NUMBER) == 3)
+            {
+                albumView = (ListView) rootView.findViewById(R.id.album_list);
+                songList = new ArrayList<Song>();
+                getSongList(getContext());
+                ArrayList<Song> copyList = new ArrayList<>(songList);
+                Collections.sort(copyList, new Comparator<Song>(){
+                    public int compare(Song a, Song b){
+                        return a.getAlbum().compareTo(b.getAlbum());
+                    }
+                });
+                int j = 0;
+                for (int i = 0; i < copyList.size(); i++) {
+                    Song curSong = (Song)copyList.get(i);
+                    if(i == 0)
+                    {
+                        Album albumName = new Album(curSong.getAlbum(), curSong.getArtist());
+                        albumName.addToList(curSong);
+                        album.add(albumName);
+                    }
+                    else
+                    {
+                        if(album.get(j).toString().equals(curSong.getAlbum()) && album.get(j).getArtistName().equals(curSong.getArtist())){
+
+                            album.get(j).addToList(curSong);
+                        }
+                        else{
+                            j++;
+                            Album albumName = new Album(curSong.getAlbum(), curSong.getArtist());
+                            albumName.addToList(curSong);
+                            album.add(albumName);
+                        }
+                    }
+                }
+                AlbumAdapter albumAdt = new AlbumAdapter(getContext(), album);
+                albumView.setAdapter(albumAdt);
             }
             else {
                 TextView textView = (TextView) rootView.findViewById(R.id.section_label);
@@ -461,14 +513,26 @@ public class MainActivity extends AppCompatActivity implements MediaController.M
                     (android.provider.MediaStore.Audio.Media._ID);
             int artistColumn = musicCursor.getColumnIndex
                     (android.provider.MediaStore.Audio.Media.ARTIST);
+            int albumColumn = musicCursor.getColumnIndex
+                    (MediaStore.Audio.Media.ALBUM);
+            int albummm = musicCursor.getColumnIndex
+                    (MediaStore.Audio.Albums.ARTIST);
+            Log.d("log", String.valueOf(albummm));
             //add songs to list
             do {
                 long thisId = musicCursor.getLong(idColumn);
                 String thisTitle = musicCursor.getString(titleColumn);
                 String thisArtist = musicCursor.getString(artistColumn);
-                songList.add(new Song(thisId, thisTitle, thisArtist));
+                String thisAlbum = musicCursor.getString(albumColumn);
+                songList.add(new Song(thisId, thisTitle, thisArtist, thisAlbum));
             }
             while (musicCursor.moveToNext());
+            Collections.sort(songList, new Comparator<Song>(){
+                public int compare(Song a, Song b){
+                    return a.getAlbum().compareTo(b.getAlbum());
+                }
+            });
         }
     }
+
 }

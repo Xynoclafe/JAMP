@@ -9,6 +9,7 @@ import android.os.IBinder;
 import android.support.annotation.Nullable;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Random;
 
@@ -70,7 +71,7 @@ public class MusicService extends Service implements MediaPlayer.OnPreparedListe
         songs=theSongs;
     }
 
-    public class MusicBinder extends Binder {
+    public class MusicBinder extends Binder{
         MusicService getService() {
             return MusicService.this;
         }

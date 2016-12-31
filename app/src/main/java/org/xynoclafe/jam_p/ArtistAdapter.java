@@ -50,7 +50,7 @@ public class ArtistAdapter extends BaseAdapter {
         //get title and artist strings
         name.setText(curArtist.toString());
         //set position as tag
-        artistLay.setTag(position);
+        artistLay.setTag(curArtist.toString());
         return artistLay;
     }
 
